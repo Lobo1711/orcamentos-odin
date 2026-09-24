@@ -1,0 +1,181 @@
+<!DOCTYPE html> <!--entrada do codigo HTML-->
+<html lang="pt-BR"> <!-- modelo da linguagem do HTML-->
+  <head>
+    <meta charset="UTF-8" /> <!--define a codificação de caracteres como UTF-8-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!--define a largura da viewport para corresponder à largura do dispositivo e define o nível de zoom inicial como 1.0-->
+    <title>Orçamentos Odin</title> <!--define o título da página como "Orçamentos Odin"-->
+    <link rel="preconnect" href="https://fonts.googleapis.com" /> <!--indica ao navegador para estabelecer uma conexão antecipada com o domínio "fonts.googleapis.com" para otimizar o carregamento de fontes-->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /> <!--indica ao navegador para estabelecer uma conexão antecipada com o domínio "fonts.gstatic.com" e permite o compartilhamento de recursos entre origens diferentes (cross-origin)-->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><!--importa a fonte "Inter" do Google Fonts com diferentes pesos (400, 500, 600, 700, 800) e define o parâmetro "display=swap" para melhorar a renderização da fonte-->
+    <link rel="stylesheet" href="/styles.css" /> <!--importa o arquivo de estilos CSS localizado em "/styles.css" para aplicar estilos à página--> 
+  </head> 
+  <body>
+    <main class="container"> <!--define a tag <main> como o contêiner principal da página com a classe "container" para aplicar estilos específicos-->
+      <section class="card hero"> <!--define a tag <section> como uma seção da página com as classes "card" e "hero" para aplicar estilos específicos-->
+        <div class="header-row"> <!--define a tag <div> como uma linha de cabeçalho com a classe "header-row" para aplicar estilos específicos-->
+          <div>
+            <h1>Orçamentos Odin</h1> <!--define o título principal da página como "Orçamentos Odin" usando a tag <h1>-->
+              <h4> Desenvolvido por GUILHERME SILVA 🐺 <br> guilhermecarlossilva1@gmail.com • 2026©  </br> </h4>
+          </div>
+          <div class="badge">Produtos</div> <!--define uma tag <div> com a classe "badge" para exibir um rótulo ou distintivo com o texto "Produtos"-->
+        </div>
+
+        <div id="product-search-stack" class="search-stack"> <!--define a tag <div> como um contêiner para a pilha de busca de produtos com o ID "product-search-stack" e a classe "search-stack" para aplicar estilos específicos-->
+          <div class="search-row">
+            <label for="product-url" class="sr-only">Link do produto</label> <!--define uma tag <label> associada ao campo de entrada de URL do produto com o atributo "for" apontando para o ID "product-url" e a classe "sr-only" para ocultar visualmente o rótulo, mas mantê-lo acessível para leitores de tela-->
+            <input
+              id="product-url" 
+              class="product-link-input"
+              type="url"
+              placeholder="Cole o link do produto aqui"
+              autocomplete="off"
+              required
+            />
+            <button id="search-button" type="button">Buscar produto</button> <!--define um botão com o ID "search-button" e o tipo "button" que, quando clicado, aciona a busca do produto-->
+          </div>  
+        </div>
+
+        <div class="toolbar-row">
+          <button id="add-product-btn" type="button" class="secondary-btn"></button> <!--define um botão com o ID "add-product-btn", o tipo "button" e a classe "secondary-btn" que, quando clicado, adiciona um novo campo de busca de produto-->
+          <button id="pdf-button" type="button" class="secondary-btn">Gerar PDF</button> <!--define um botão com o ID "pdf-button", o tipo "button" e a classe "secondary-btn" que, quando clicado, gera um arquivo PDF do orçamento-->
+        </div>
+
+        <p id="status-message" class="status-message" aria-live="polite">Informe um link para localizar o produto.</p> <!--define um parágrafo com o ID "status-message", a classe "status-message" e o atributo "aria-live" definido como "polite" para fornecer mensagens de status acessíveis aos leitores de tela. O texto inicial é "Informe um link para localizar o produto."-->
+      </section>
+
+      <section class="card customer-card"> <!--define a tag <section> como uma seção da página com as classes "card" e "customer-card" para aplicar estilos específicos-->
+        <h3>Dados do orçamento</h3> <!--define o título da seção como "Dados do orçamento" usando a tag <h3>-->
+        <div class="meta-grid"> <!--define a tag <div> como um contêiner para os campos de entrada de dados do orçamento com a classe "meta-grid" para aplicar estilos específicos-->
+          <label>
+            <span>Nome do cliente</span>
+            <input id="client-name" type="text" placeholder="Ex: João da Silva" /> <! --define um campo de entrada de texto com o ID "client-name" e um espaço reservado (placeholder) que exibe "Ex: João da Silva" quando o campo está vazio-->
+          </label> <!--define um rótulo para o campo de entrada de texto do nome do cliente-->
+          <label>
+            <span>Nome do vendedor</span> <!--define um rótulo para o campo de entrada de texto do nome do vendedor-->
+            <input id="seller-name" type="text" placeholder="Ex: Maria Souza" /> <!--define um campo de entrada de texto com o ID "seller-name" e um espaço reservado (placeholder) que exibe "Ex: Maria Souza" quando o campo está vazio-->
+          </label>
+          <label>
+            <span>Valor do frete</span> <!--define um rótulo para o campo de entrada de texto do valor do frete-->
+            <input id="frete" type="text" inputmode="decimal" value="0" /> <!--define um campo de entrada de texto com o ID "frete", o tipo "text", o modo de entrada definido como "decimal" para permitir apenas números decimais e um valor inicial de "0"-->
+          </label>
+          <label>
+            <span>Dia da entrega</span> <!--define um rótulo para o campo de entrada de data da entrega-->
+            <input id="delivery-date" type="date" /> <!--define um campo de entrada de data com o ID "delivery-date" e o tipo "date"-->
+          </label>
+        </div>
+      </section>
+
+      <section id="product-list" class="card product-list" aria-live="polite"></section>  
+
+      <section class="card summary-card">
+        <h3>Resumo do orçamento</h3>
+        <div class="summary-grid">
+          <div class="summary-box">
+            <span>Produtos</span>
+            <strong id="total-products">0</strong> <!--define um elemento <strong> com o ID "total-products" que exibe o número total de produtos no orçamento, inicialmente definido como "0"-->
+          </div>
+          <div class="summary-box"> <!--define um elemento <div> com a classe "summary-box" que contém o resumo do valor total do orçamento-->
+            <span>Total no Pix</span>
+            <strong id="total-pix">R$ 0,00</strong> <!--define um elemento <strong> com o ID "total-pix" que exibe o valor total do orçamento no Pix, inicialmente definido como "R$ 0,00"-->
+          </div>
+          <div class="summary-box highlight-box"> <!--define um elemento <div> com as classes "summary-box" e "highlight-box" que contém o resumo do valor total do orçamento parcelado-->
+            <span id="summary-installment-label">Parcelado em 10x</span> <!--define um elemento <span> com o ID "summary-installment-label" que exibe o texto "Parcelado em 10x"-->
+            <strong id="total-installment">R$ 0,00</strong> <!--define um elemento <strong> com o ID "total-installment" que exibe o valor total do orçamento parcelado, inicialmente definido como "R$ 0,00"-->
+            <small id="monthly-installment">10x de R$ 0,00</small> <!--define um elemento <small> com o ID "monthly-installment" que exibe o valor da parcela mensal do orçamento parcelado, inicialmente definido como "10x de R$ 0,00"-->
+          </div> 
+        </div>
+
+        <div class="extras-breakdown" aria-live="polite"> <!--define um elemento <div> com a classe "extras-breakdown" que contém o detalhamento dos valores adicionais do orçamento, como garantia estendida, instalação, seguro e frete. O atributo "aria-live" é definido como "polite" para fornecer atualizações acessíveis aos leitores de tela-->
+          <div class="extra-line"> <!--define um elemento <div> com a classe "extra-line" que contém o detalhamento do valor da garantia estendida-->
+            <span>Garantia estendida</span>  <!--define um elemento <span> que exibe o texto "Garantia estendida"-->
+            <strong id="summary-garantia">R$ 0,00</strong> <!--define um elemento <strong> com o ID "summary-garantia" que exibe o valor da garantia estendida, inicialmente definido como "R$ 0,00"-->
+          </div>
+          <div class="extra-line"> <!-- define um elemento <div> com a classe "extra-line" que contém o detalhamento do valor da instalação-->
+            <span>Instalação</span> <!--define um elemento <span> que exibe o texto "Instalação"-->
+            <strong id="summary-instalacao">R$ 0,00</strong> <!--define um elemento <strong> com o ID "summary-instalacao" que exibe o valor da instalação, inicialmente definido como "R$ 0,00"-->
+          </div>
+          <div class="extra-line"> <!--define um elemento <div> com a classe "extra-line" que contém o detalhamento do valor do seguro-->
+            <span>Seguro</span> <!--define um elemento <span> que exibe o texto "Seguro"-->
+            <strong id="summary-seguro">R$ 0,00</strong> <!--define um elemento <strong> com o ID "summary-seguro" que exibe o valor do seguro, inicialmente definido como "R$ 0,00"-->
+          </div>
+          <div class="extra-line"> <!--define um elemento <div> com a classe "extra-line" que contém o detalhamento do valor do frete-->
+            <span>Frete</span>
+            <strong id="summary-frete">R$ 0,00</strong> <!--define um elemento <strong> com o ID "summary-frete" que exibe o valor do frete, inicialmente definido como "R$ 0,00"-->
+          </div>
+        </div>
+
+        <div id="quote-footer-note" class="quote-footer-note" aria-live="polite"></div> <!--define um elemento <div> com o ID "quote-footer-note" e a classe "quote-footer-note" que exibe uma nota de rodapé do orçamento. O atributo "aria-live" é definido como "polite" para fornecer atualizações acessíveis aos leitores de tela-->
+      </section>
+    </main>
+
+    </main>
+
+    <!-- Print-friendly quote (hidden on screen) -->
+    <section id="print-area" class="card print-area hidden" aria-hidden="true"> <!--define uma seção com o ID "print-area", a classe "card print-area hidden" e o atributo "aria-hidden" definido como "true", indicando que esta seção é destinada à impressão e está oculta na tela-->
+      <div class="print-header"> <!--define um elemento <div> com a classe "print-header" que contém o cabeçalho do orçamento para impressão-->
+        <h2>Orçamento</h2>  
+        <div class="print-meta"> <!--define um elemento <div> com a classe "print-meta" que contém as informações do cliente, vendedor e entrega para impressão-->
+          <div><strong>Cliente:</strong> <span id="print-client">-</span></div> <!--define um elemento <div> que exibe o nome do cliente para impressão, com o ID "print-client" inicialmente definido como "-"-->
+          <div><strong>Vendedor:</strong> <span id="print-seller">-</span></div> <!--define um elemento <div> que exibe o nome do vendedor para impressão, com o ID "print-seller" inicialmente definido como "-"-->
+          <div><strong>Entrega:</strong> <span id="print-delivery">-</span></div> <!--define um elemento <div> que exibe a data de entrega para impressão, com o ID "print-delivery" inicialmente definido como "-"-->
+        </div>
+      </div>
+<table class="print-table" aria-hidden="true"> <!--define uma tabela com a classe "print-table" e o atributo "aria-hidden" definido como "true", indicando que esta tabela é destinada à impressão e está oculta na tela-->
+  <thead>
+    <tr>
+      <th>Imagem</th> <!--define um cabeçalho de tabela com o texto "Imagem"-->
+      <th>Produto</th> <!--define um cabeçalho de tabela com o texto "Produto"-->
+      <th>Pix</th> <!--define um cabeçalho de tabela com o texto "Pix"-->
+      <th>Parcelamento</th> <!--define um cabeçalho de tabela com o texto "Parcelamento"-->
+      <th>Adicionais</th> <!--define um cabeçalho de tabela com o texto "Adicionais"-->
+    </tr>
+  </thead>
+
+  <tbody id="print-products-body"> <!--define o corpo da tabela com o ID "print-products-body" que será preenchido dinamicamente com os produtos do orçamento para impressão-->
+  </tbody>
+
+  <tfoot>
+    <tr>
+      <td colspan="3"></td> <!--define uma célula de tabela que se estende por três colunas, mas não contém nenhum conteúdo-->
+      <td><strong>Frete</strong></td>
+      <td id="print-frete">R$ 0,00</td>
+    </tr>
+
+    <tr>
+      <td colspan="3"></td>
+      <td><strong>Total de Garantias</strong></td>
+      <td id="print-garantia">R$ 0,00</td>
+    </tr>
+
+    <tr>
+      <td colspan="3"></td>
+      <td><strong>Total de Instalações</strong></td>
+      <td id="print-instalacao">R$ 0,00</td>
+    </tr>
+
+    <tr>
+      <td colspan="3"></td>
+      <td><strong>Total de Seguros</strong></td>
+      <td id="print-seguro">R$ 0,00</td>
+    </tr>
+
+    <tr>
+      <td colspan="3"></td>
+      <td><strong>Total (Pix)</strong></td>
+      <td id="print-total-pix">R$ 0,00</td>
+    </tr>
+
+    <tr>
+      <td colspan="3"></td>
+      <td><strong>Total Parcelado</strong></td>
+      <td id="print-total-installment">R$ 0,00</td>
+    </tr>
+  </tfoot>
+</table>
+      
+      <div id="print-footer-note" class="quote-footer-note" aria-hidden="true"></div> <!--define um elemento <div> com o ID "print-footer-note" e a classe "quote-footer-note" que exibe uma nota de rodapé do orçamento para impressão. O atributo "aria-hidden" é definido como "true", indicando que esta nota está oculta na tela-->
+    </section>
+
+    <script src="/app.js"></script> <!--importa o arquivo JavaScript localizado em "/app.js" para adicionar funcionalidades à página-->
+  </body>
+</html>
