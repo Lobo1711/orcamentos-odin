@@ -587,11 +587,11 @@ function populatePrintArea() {
         const extrasTotal = garantia + instalacao + seguro;
 
         /*
-          Total final do produto
-          incluindo adicionais
+          Mantém o PIX original do produto na primeira coluna do PDF.
+          A soma com quantidade e adicionais continua sendo feita no total geral.
         */
 
-        const pixTotal = money(product.pixPrice) * quantity + extrasTotal;
+        const pixValue = money(product.pixPrice) * quantity;
 
         const installmentTotal = (baseTotal + extrasTotal) * quantity;
 
@@ -697,7 +697,7 @@ function populatePrintArea() {
 
             <td>
               <strong>
-                ${currencyFormatter.format(pixTotal)}
+                ${currencyFormatter.format(pixValue)}
               </strong>
             </td>
 
