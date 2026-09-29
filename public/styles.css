@@ -604,6 +604,23 @@ h1 {
     border-bottom: 1px solid #e6eefb;
   }
 
+  .print-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .print-title h2 {
+    margin: 0;
+  }
+
+  .print-logo {
+    width: 130px;
+    height: auto;
+    object-fit: contain;
+  }
+
   .print-meta {
     display: flex;
     gap: 22px;
