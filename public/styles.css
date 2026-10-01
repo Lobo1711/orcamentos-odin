@@ -617,8 +617,9 @@ h1 {
 
   .print-logo {
     width: 130px;
-    height: auto;
-    object-fit: contain;
+    height: 60px;
+    object-fit: cover;
+    object-position: center;
   }
 
   .print-meta {
