@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Aplicar migrações D1 locais",
+      "type": "process",
+      "command": "${env:ProgramFiles}\\nodejs\\node.exe",
+      "args": [
+        "${workspaceFolder}\\node_modules\\wrangler\\bin\\wrangler.js",
+        "d1",
+        "migrations",
+        "apply",
+        "orcamentos-odin",
+        "--local"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Iniciar servidor local",
+      "type": "process",
+      "command": "${env:ProgramFiles}\\nodejs\\node.exe",
+      "args": [
+        "${workspaceFolder}\\node_modules\\wrangler\\bin\\wrangler.js",
+        "dev",
+        "--ip",
+        "127.0.0.1",
+        "--port",
+        "8787"
+      ],
+      "dependsOn": "Aplicar migrações D1 locais",
+      "dependsOrder": "sequence",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "orcamentos-odin",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Starting local server",
+          "endsPattern": "Ready on http://127\\.0\\.0\\.1:8787"
+        }
+      }
+    }
+  ]
+}
