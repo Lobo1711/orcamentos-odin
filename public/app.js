@@ -14,6 +14,13 @@ const seguroSummaryEl = document.getElementById("summary-seguro"); // Elemento p
 const freteSummaryEl = document.getElementById("summary-frete"); // Elemento para exibir o valor total do frete
 const quoteFooterNoteEl = document.getElementById("quote-footer-note"); // Elemento para exibir a nota de rodapé do orçamento
 const deliveryDateInput = document.getElementById("delivery-date"); // Input para selecionar a data de entrega do orçamento
+const quoteNameInput = document.getElementById("quote-name");
+const savedQuotesSelect = document.getElementById("saved-quotes-select");
+const saveQuoteButton = document.getElementById("save-quote-btn");
+const loadQuoteButton = document.getElementById("load-quote-btn");
+const deleteQuoteButton = document.getElementById("delete-quote-btn");
+const newQuoteButton = document.getElementById("new-quote-btn");
+const legacySavedQuotesStorageKey = "orcamentos-odin:saved-quotes:v1";
 
 const fields = {
   // Objeto contendo referências aos campos de entrada do formulário
@@ -22,6 +29,10 @@ const fields = {
 
 let products = []; // Array para armazenar os produtos adicionados ao orçamento
 let rowCounter = 1; // Contador para gerar IDs únicos para as linhas de busca de produtos
+let savedQuotes = [];
+let currentQuoteId = null;
+let persistTimer;
+let quoteSaveQueue = Promise.resolve();
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   // Instância do formatador de moeda para o Brasil
@@ -137,6 +148,20 @@ function getProductBaseInstallmentValues( // Função para calcular os valores d
   const installments = Number(selectedInstallments || 1); // Valor de parcelas selecionadas, garantindo que seja pelo menos 1
   const basePrice = Number(product?.price || 0);
   const directPlan = product?.installmentOptions?.[installments];
+  const overrideInstallments = Number(product?.installmentOverrideInstallments);
+  const overrideTotal = Number(product?.installmentTotalOverride);
+
+  if (
+    overrideInstallments === installments &&
+    Number.isFinite(overrideTotal) &&
+    overrideTotal >= 0
+  ) {
+    return {
+      monthly: overrideTotal / installments,
+      total: overrideTotal,
+      installments,
+    };
+  }
 
   if (
     directPlan && // Verifica se existe um plano de parcelamento direto para o número de parcelas selecionado
@@ -222,11 +247,13 @@ function getProductBaseMonthlyInstallment(
   return getProductBaseInstallmentValues(product, selectedInstallments).monthly;
 }
 
-function renderProducts() { // Função para renderizar a lista de produtos adicionados ao orçamento
+function renderProducts({ persist = true } = {}) { // Função para renderizar a lista de produtos adicionados ao orçamento
   if (!products.length) { // Verifica se não há produtos na lista
     productList.innerHTML = // Atualiza o conteúdo do elemento de lista de produtos com uma mensagem indicando que não há produtos adicionados
       '<div class="empty-state">Nenhum produto adicionado. Cole um link para começar o orçamento.</div>'; // Mensagem de estado vazio
     updateTotals();
+    updateQuoteFooterNote();
+    if (persist) persistCurrentQuote();
     return;
   }
 
@@ -242,11 +269,12 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
         selectedInstallments,
       );
       const quantity = getProductQuantity(product);
+      const pixPrice = money(product.pixPrice);
       const pixTotal =
-        (money(product.pixPrice) + getProductExtraTotal(product)) * quantity;
+        (pixPrice + getProductExtraTotal(product)) * quantity;
       const installmentTotalForQuantity = installmentTotal * quantity;
-      const dimensaoProduto = product.dimensoes || "Não informado";
-      const dimensaoNicho = product.nichoDimensoes || "Não informado";
+      const dimensaoNicho =
+        product.nichoDimensoes || product.nicheDimensions || "";
 
       return `
         <article class="quote-product">
@@ -259,6 +287,7 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
               </div>
               <div class="quote-product-actions">
                 <button type="button" class="duplicate-product" data-index="${index}">+ 1 unidade</button>
+                ${quantity > 1 ? `<button type="button" class="remove-duplicate-unit" data-index="${index}">− 1 unidade</button>` : ""}
                 <button type="button" class="remove-product" data-index="${index}">Remover</button>
               </div>
             </div>
@@ -278,6 +307,14 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
             </div>
         
             <div class="manual-extra-grid">
+              <label>
+                <span>Valor Pix (por unidade)</span>
+                <input class="product-value-input" data-index="${index}" data-field="pixPrice" type="text" inputmode="decimal" value="${pixPrice.toFixed(2)}" />
+              </label>
+              <label>
+                <span>Total parcelado (por unidade)</span>
+                <input class="product-value-input" data-index="${index}" data-field="installmentTotalOverride" type="text" inputmode="decimal" value="${installmentTotal.toFixed(2)}" />
+              </label>
               <label>
                 <span>Garantia</span> 
                 <input class="product-extra-input" data-index="${index}" data-field="garantia" type="text" inputmode="decimal" value="${money(product.garantia)}" />
@@ -300,6 +337,10 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
                 <span>Dimensões</span>
                 <input class="product-dimensions-input" data-index="${index}" data-field="dimensoes" type="text" value="${escapeHtml(product.dimensoes || "")}" placeholder="Ex: 120x80x40 cm" />
               </label>
+              <label>
+                <span>Nicho do produto</span>
+                <input class="product-dimensions-input" data-index="${index}" data-field="nichoDimensoes" type="text" value="${escapeHtml(dimensaoNicho)}" placeholder="Ex: 125x85x45 cm" />
+              </label>
             </div>
           </div>
         </article>
@@ -312,6 +353,21 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
       const index = Number(button.dataset.index);
       products.splice(index, 1);
       renderProducts();
+    });
+  });
+
+  productList.querySelectorAll(".remove-duplicate-unit").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.index);
+      const product = products[index];
+
+      if (!product || getProductQuantity(product) <= 1) {
+        return;
+      }
+
+      product.quantity = getProductQuantity(product) - 1;
+      renderProducts();
+      setStatus("Uma unidade duplicada foi removida.");
     });
   });
 
@@ -330,30 +386,43 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
     });
   });
 
-  productList.querySelectorAll(".product-extra-input").forEach((input) => {
-    input.addEventListener("input", () => {
-      const index = Number(input.dataset.index);
-      const field = input.dataset.field;
-      input.value = sanitizeDecimalInput(input.value);
-      products[index][field] = money(input.value);
-      updateTotals();
-      updateQuoteFooterNote();
+  productList
+    .querySelectorAll(".product-value-input, .product-extra-input")
+    .forEach((input) => {
+      input.addEventListener("input", () => {
+        const index = Number(input.dataset.index);
+        const field = input.dataset.field;
+        input.value = sanitizeDecimalInput(input.value);
+        products[index][field] = money(input.value);
+        if (field === "installmentTotalOverride") {
+          products[index].installmentOverrideInstallments = Number(
+            products[index].installments || 10,
+          );
+        }
+        updateTotals();
+        updateProductValueCards();
+        updateQuoteFooterNote();
+        persistCurrentQuote();
+      });
     });
-  });
 
   productList.querySelectorAll(".product-dimensions-input").forEach((input) => {
     input.addEventListener("input", () => {
       const index = Number(input.dataset.index);
-      products[index].dimensoes = input.value.trim();
+      products[index][input.dataset.field] = input.value;
       updateQuoteFooterNote();
+      persistCurrentQuote();
     });
   });
 
   productList
-    .querySelectorAll(".product-extra-input, .product-dimensions-input")
+    .querySelectorAll(".product-value-input, .product-extra-input")
     .forEach((input) => {
       input.addEventListener("blur", () => {
-        if (input.classList.contains("product-extra-input")) {
+        if (
+          input.classList.contains("product-value-input") ||
+          input.classList.contains("product-extra-input")
+        ) {
           input.value = sanitizeDecimalInput(input.value);
         }
       });
@@ -365,12 +434,41 @@ function renderProducts() { // Função para renderizar a lista de produtos adic
       select.addEventListener("change", () => {
         const index = Number(select.dataset.index);
         products[index].installments = Number(select.value || 10);
+        delete products[index].installmentTotalOverride;
+        delete products[index].installmentOverrideInstallments;
         renderProducts();
       });
     });
 
   updateTotals();
   updateQuoteFooterNote();
+  updateProductValueCards();
+  if (persist) persistCurrentQuote();
+}
+
+function updateProductValueCards() {
+  productList.querySelectorAll(".quote-product").forEach((card, index) => {
+    const product = products[index];
+    if (!product) return;
+
+    const quantity = getProductQuantity(product);
+    const installmentCount = Number(product.installments || 10);
+    const values = card.querySelectorAll(".quote-product-values strong");
+    const pixTotal =
+      (money(product.pixPrice) + getProductExtraTotal(product)) * quantity;
+
+    if (values[0]) values[0].textContent = currencyFormatter.format(pixTotal);
+    if (values[1]) {
+      values[1].textContent = currencyFormatter.format(
+        getProductBaseMonthlyInstallment(product, installmentCount) * quantity,
+      );
+    }
+    if (values[2]) {
+      values[2].textContent = currencyFormatter.format(
+        getProductBaseInstallmentTotal(product, installmentCount) * quantity,
+      );
+    }
+  });
 }
 
 function updateTotals() {
@@ -427,6 +525,50 @@ function setStatus(message, isError = false) {
   statusMessage.style.color = isError ? "#a91d1d" : "#5a6477"; // Define a cor do texto com base no tipo de mensagem (erro ou não)
 }
 
+async function migrateLegacyQuotes() {
+  let raw;
+  try {
+    raw = localStorage.getItem(legacySavedQuotesStorageKey);
+  } catch (error) {
+    setStatus(`Não foi possível ler orçamentos antigos deste navegador: ${error.message}`, true);
+    return;
+  }
+  if (!raw) return;
+
+  let legacyQuotes;
+  try {
+    legacyQuotes = JSON.parse(raw);
+    if (
+      !Array.isArray(legacyQuotes) ||
+      legacyQuotes.some(
+        (quote) =>
+          !quote ||
+          typeof quote.id !== "string" ||
+          typeof quote.name !== "string" ||
+          !Array.isArray(quote.products),
+      )
+    ) {
+      throw new Error("A lista antiga tem um formato inválido.");
+    }
+  } catch (error) {
+    setStatus(`Não foi possível migrar orçamentos antigos: ${error.message}`, true);
+    return;
+  }
+
+  try {
+    for (const quote of legacyQuotes) {
+      await apiRequest(`/api/quotes/${encodeURIComponent(quote.id)}`, {
+        method: "PUT",
+        body: JSON.stringify(quote),
+      });
+    }
+    localStorage.removeItem(legacySavedQuotesStorageKey);
+    setStatus(`${legacyQuotes.length} orçamento(s) deste navegador foram migrados para a nuvem.`);
+  } catch (error) {
+    setStatus(`A migração dos orçamentos antigos não foi concluída: ${error.message}`, true);
+  }
+}
+
 async function fetchProduct(url) {
   const response = await fetch(`/api/product?url=${encodeURIComponent(url)}`);
 
@@ -436,6 +578,257 @@ async function fetchProduct(url) {
   }
 
   return response.json();
+}
+
+function createQuoteProduct(product) {
+  return {
+    ...product,
+    garantia: 0,
+    instalacao: 0,
+    seguro: 0,
+    dimensoes: product.dimensoes || "",
+    nichoDimensoes: product.nichoDimensoes || product.nicheDimensions || "",
+    installments: Number(product.installments || 10),
+    installmentTotal: getProductInstallmentTotal(product),
+  };
+}
+
+async function apiRequest(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(path, {
+    ...options,
+    headers,
+    credentials: "same-origin",
+  });
+  const contentType = response.headers.get("Content-Type") || "";
+  const payload = contentType.includes("application/json")
+    ? await response.json()
+    : null;
+  if (!response.ok) {
+    throw new Error(payload?.error || `Falha na solicitação (${response.status}).`);
+  }
+  return payload;
+}
+
+function renderSavedQuotes() {
+  const selectedId = savedQuotesSelect.value;
+  savedQuotesSelect.replaceChildren(
+    new Option("Selecione um orçamento", ""),
+  );
+
+  [...savedQuotes]
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))
+    .forEach((quote) => {
+      const option = new Option(
+        quote.clientName ? `${quote.name} — ${quote.clientName}` : quote.name,
+        quote.id,
+      );
+      savedQuotesSelect.add(option);
+    });
+
+  if (savedQuotes.some((quote) => quote.id === selectedId)) {
+    savedQuotesSelect.value = selectedId;
+  }
+}
+
+async function refreshSavedQuotes() {
+  const payload = await apiRequest("/api/quotes");
+  savedQuotes = payload.quotes || [];
+  renderSavedQuotes();
+}
+
+function queueQuoteSave(id, body) {
+  const save = quoteSaveQueue
+    .catch(() => {})
+    .then(() =>
+      apiRequest(`/api/quotes/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body,
+      }),
+    );
+  quoteSaveQueue = save;
+  return save;
+}
+
+async function flushCurrentQuote() {
+  if (!currentQuoteId) return;
+  const quoteId = currentQuoteId;
+  clearTimeout(persistTimer);
+  await queueQuoteSave(
+    quoteId,
+    JSON.stringify(
+      getCurrentQuoteSnapshot(
+        quoteId,
+        savedQuotes.find((item) => item.id === quoteId)?.createdAt,
+      ),
+    ),
+  );
+  await refreshSavedQuotes();
+}
+
+function getCurrentQuoteSnapshot(id, createdAt = new Date().toISOString()) {
+  return {
+    id,
+    name: quoteNameInput.value.trim(),
+    clientName: document.getElementById("client-name").value.trim(),
+    sellerName: document.getElementById("seller-name").value.trim(),
+    frete: fields.frete.value,
+    deliveryDate: deliveryDateInput.value,
+    products: JSON.parse(JSON.stringify(products)),
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function persistCurrentQuote() {
+  if (!currentQuoteId) return;
+  const quoteId = currentQuoteId;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(async () => {
+    if (currentQuoteId !== quoteId) return;
+    try {
+      const quote = getCurrentQuoteSnapshot(
+        quoteId,
+        savedQuotes.find((item) => item.id === quoteId)?.createdAt,
+      );
+      await queueQuoteSave(quoteId, JSON.stringify(quote));
+      await refreshSavedQuotes();
+      setStatus("Alterações sincronizadas com a nuvem.");
+    } catch (error) {
+      setStatus(`Não foi possível sincronizar o orçamento: ${error.message}`, true);
+    }
+  }, 500);
+}
+
+async function saveCurrentQuote() {
+  const name = quoteNameInput.value.trim();
+  if (!name) {
+    setStatus("Informe um nome para salvar o orçamento.", true);
+    quoteNameInput.focus();
+    return;
+  }
+
+  const existingQuote = savedQuotes.find((quote) => quote.id === currentQuoteId);
+  const id =
+    currentQuoteId ||
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const quote = getCurrentQuoteSnapshot(id, existingQuote?.createdAt);
+  try {
+    clearTimeout(persistTimer);
+    await queueQuoteSave(id, JSON.stringify(quote));
+    currentQuoteId = id;
+    await refreshSavedQuotes();
+    savedQuotesSelect.value = id;
+    setStatus(`Orçamento "${name}" salvo na nuvem.`);
+  } catch (error) {
+    setStatus(`Não foi possível salvar o orçamento: ${error.message}`, true);
+  }
+}
+
+async function loadSelectedQuote() {
+  const id = savedQuotesSelect.value;
+  if (!id) {
+    setStatus("Selecione um orçamento salvo para abrir.", true);
+    return;
+  }
+
+  try {
+    await flushCurrentQuote();
+  } catch (error) {
+    setStatus(`Não foi possível sincronizar o orçamento atual: ${error.message}`, true);
+    return;
+  }
+
+  let quote;
+  try {
+    quote = await apiRequest(`/api/quotes/${encodeURIComponent(id)}`);
+  } catch (error) {
+    setStatus(`Não foi possível abrir o orçamento: ${error.message}`, true);
+    return;
+  }
+
+  quoteNameInput.value = quote.name;
+  document.getElementById("client-name").value = quote.clientName || "";
+  document.getElementById("seller-name").value = quote.sellerName || "";
+  fields.frete.value = quote.frete ?? "0";
+  deliveryDateInput.value = quote.deliveryDate || "";
+  products = JSON.parse(JSON.stringify(quote.products));
+  currentQuoteId = quote.id;
+  renderProducts({ persist: false });
+  updateQuoteFooterNote();
+  setStatus(`Orçamento "${quote.name}" carregado para edição.`);
+}
+
+async function deleteSelectedQuote() {
+  const quote = savedQuotes.find(
+    (item) => item.id === savedQuotesSelect.value,
+  );
+  if (!quote) {
+    setStatus("Selecione um orçamento salvo para excluir.", true);
+    return;
+  }
+  if (!window.confirm(`Excluir o orçamento salvo "${quote.name}"?`)) return;
+
+  const wasCurrentQuote = currentQuoteId === quote.id;
+  if (wasCurrentQuote) {
+    clearTimeout(persistTimer);
+    currentQuoteId = null;
+    await quoteSaveQueue.catch(() => {});
+  }
+  try {
+    await apiRequest(`/api/quotes/${encodeURIComponent(quote.id)}`, {
+      method: "DELETE",
+    });
+    await refreshSavedQuotes();
+    if (wasCurrentQuote) {
+      currentQuoteId = null;
+      quoteNameInput.value = "";
+    }
+    setStatus(`Orçamento salvo "${quote.name}" excluído.`);
+  } catch (error) {
+    if (wasCurrentQuote) {
+      currentQuoteId = quote.id;
+      persistCurrentQuote();
+    }
+    setStatus(`Não foi possível excluir o orçamento: ${error.message}`, true);
+  }
+}
+
+async function startNewQuote() {
+  if (
+    !window.confirm(
+      "Iniciar um orçamento novo? Alterações do orçamento salvo serão sincronizadas; alterações não salvas serão descartadas.",
+    )
+  ) {
+    return;
+  }
+
+  try {
+    await flushCurrentQuote();
+  } catch (error) {
+    setStatus(`Não foi possível sincronizar o orçamento atual: ${error.message}`, true);
+    return;
+  }
+  clearTimeout(persistTimer);
+  currentQuoteId = null;
+  quoteNameInput.value = "";
+  document.getElementById("client-name").value = "";
+  document.getElementById("seller-name").value = "";
+  fields.frete.value = "0";
+  deliveryDateInput.value = "";
+  products = [];
+  savedQuotesSelect.value = "";
+  searchStack.querySelectorAll(".search-row").forEach((row, index) => {
+    if (index > 0) row.remove();
+    else row.querySelector(".product-link-input").value = "";
+  });
+  renderProducts({ persist: false });
+  updateQuoteFooterNote();
+  setStatus("Novo orçamento iniciado.");
 }
 
 function addSearchRow() {
@@ -463,15 +856,7 @@ function addSearchRow() {
 
     try {
       const product = await fetchProduct(url);
-      products.push({
-        ...product,
-        garantia: 0,
-        instalacao: 0,
-        seguro: 0,
-        dimensoes: "",
-        installments: Number(product.installments || 10),
-        installmentTotal: getProductInstallmentTotal(product),
-      });
+      products.push(createQuoteProduct(product));
       renderProducts();
       setStatus("Produto adicionado ao orçamento.");
       row.remove();
@@ -492,10 +877,27 @@ Object.values(fields).forEach((field) => {
   field.addEventListener("input", () => {
     updateTotals();
     updateQuoteFooterNote();
+    persistCurrentQuote();
   });
 });
 
-deliveryDateInput.addEventListener("input", updateQuoteFooterNote);
+deliveryDateInput.addEventListener("input", () => {
+  updateQuoteFooterNote();
+  persistCurrentQuote();
+});
+
+["client-name", "seller-name"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", persistCurrentQuote);
+});
+
+quoteNameInput.addEventListener("input", () => {
+  if (quoteNameInput.value.trim()) persistCurrentQuote();
+});
+
+saveQuoteButton.addEventListener("click", saveCurrentQuote);
+loadQuoteButton.addEventListener("click", loadSelectedQuote);
+deleteQuoteButton.addEventListener("click", deleteSelectedQuote);
+newQuoteButton.addEventListener("click", startNewQuote);
 
 addProductBtn.addEventListener("click", () => {
   addSearchRow();
@@ -607,6 +1009,10 @@ function populatePrintArea() {
           product.dimensoes && String(product.dimensoes).trim()
             ? String(product.dimensoes).trim()
             : "Não informado";
+        const nichoDimensoes =
+          product.nichoDimensoes && String(product.nichoDimensoes).trim()
+            ? String(product.nichoDimensoes).trim()
+            : "Não informado";
 
         /*
           Monta somente os adicionais
@@ -689,7 +1095,9 @@ function populatePrintArea() {
                 <small>
                   Quantidade: ${quantity} ${quantity === 1 ? "unidade" : "unidades"}<br />
                   Dimensões:
-                  ${escapeHtml(dimensoes)}
+                  ${escapeHtml(dimensoes)}<br />
+                  Nicho:
+                  ${escapeHtml(nichoDimensoes)}
                 </small>
 
               </div>
@@ -839,7 +1247,12 @@ function populatePrintArea() {
 }
 
 pdfButton.addEventListener("click", () => {
+  if (!products.length) {
+    setStatus("Adicione pelo menos um produto antes de gerar o PDF.", true);
+    return;
+  }
   populatePrintArea();
+  setStatus("Pré-visualize o orçamento e escolha Salvar como PDF na janela de impressão.");
   requestAnimationFrame(() => {
     setTimeout(() => window.print(), 50);
   });
@@ -857,15 +1270,7 @@ mainInput.addEventListener("keydown", (event) => { // Adiciona um listener para 
 
     fetchProduct(url)
       .then((product) => {
-        products.push({
-          ...product,
-          garantia: 0,
-          instalacao: 0,
-          seguro: 0,
-          dimensoes: "",
-          installments: Number(product.installments || 10),
-          installmentTotal: getProductInstallmentTotal(product),
-        });
+        products.push(createQuoteProduct(product));
         renderProducts();
         mainInput.value = "";
         setStatus("Produto adicionado ao orçamento.");
@@ -888,15 +1293,7 @@ mainSearchButton.addEventListener("click", async () => {
 
   try {
     const product = await fetchProduct(url);
-    products.push({
-      ...product,
-      garantia: 0,
-      instalacao: 0,
-      seguro: 0,
-      dimensoes: "",
-      installments: Number(product.installments || 10),
-      installmentTotal: getProductInstallmentTotal(product),
-    });
+    products.push(createQuoteProduct(product));
     renderProducts();
     mainInput.value = "";
     setStatus("Produto adicionado ao orçamento.");
@@ -905,5 +1302,11 @@ mainSearchButton.addEventListener("click", async () => {
   }
 });
 
+renderSavedQuotes();
 renderProducts();
 updateQuoteFooterNote();
+migrateLegacyQuotes()
+  .then(refreshSavedQuotes)
+  .catch((error) => {
+    setStatus(`Não foi possível carregar os orçamentos salvos: ${error.message}`, true);
+  });

@@ -36,6 +36,23 @@
         </div>
 
         <div class="toolbar-row">
+          <div class="quote-save-bar">
+            <label>
+              <span>Nome para salvar o orçamento</span>
+              <input id="quote-name" type="text" maxlength="100" placeholder="Ex: Cliente - sala" />
+            </label>
+            <button id="save-quote-btn" type="button" class="secondary-btn">Salvar orçamento</button>
+            <label>
+              <span>Orçamentos salvos</span>
+              <select id="saved-quotes-select">
+                <option value="">Selecione um orçamento</option>
+              </select>
+            </label>
+            <button id="load-quote-btn" type="button" class="secondary-btn">Abrir para editar</button>
+            <button id="delete-quote-btn" type="button" class="secondary-btn">Excluir salvo</button>
+            <button id="new-quote-btn" type="button" class="secondary-btn">Novo orçamento</button>
+            <small>Orçamentos ficam salvos na nuvem. Para salvar o PDF, escolha “Salvar como PDF” na pré-visualização de impressão.</small>
+          </div>
           <button id="add-product-btn" type="button" class="secondary-btn"></button> <!--define um botão com o ID "add-product-btn", o tipo "button" e a classe "secondary-btn" que, quando clicado, adiciona um novo campo de busca de produto-->
           <button id="pdf-button" type="button" class="secondary-btn">Gerar PDF</button> <!--define um botão com o ID "pdf-button", o tipo "button" e a classe "secondary-btn" que, quando clicado, gera um arquivo PDF do orçamento-->
         </div>
@@ -106,8 +123,6 @@
 
         <div id="quote-footer-note" class="quote-footer-note" aria-live="polite"></div> <!--define um elemento <div> com o ID "quote-footer-note" e a classe "quote-footer-note" que exibe uma nota de rodapé do orçamento. O atributo "aria-live" é definido como "polite" para fornecer atualizações acessíveis aos leitores de tela-->
       </section>
-    </main>
-
     </main>
 
     <!-- Print-friendly quote (hidden on screen) -->

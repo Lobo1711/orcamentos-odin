@@ -44,6 +44,10 @@ img {
   display: block; /* Define o comportamento de exibição das imagens como "block", o que significa que elas ocupam toda a largura disponível e iniciam em uma nova linha */
 }
 
+.hidden {
+  display: none !important;
+}
+
 button,
 input {
   font: inherit;
@@ -57,10 +61,12 @@ input {
   ); /* Define a largura do contêiner como o mínimo entre 1120px e 100% da largura da janela de visualização menos 32px */
   margin: 56px auto;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 
 .card {
+  min-width: 0;
   background: rgba(
     255,
     255,
@@ -90,6 +96,14 @@ input {
   justify-content: space-between; /* Distribui os itens da linha de cabeçalho horizontalmente com espaço entre eles */
   gap: 16px; /* Define o espaçamento entre os itens da linha de cabeçalho como 16px */
   margin-bottom: 24px; /* Define a margem inferior da linha de cabeçalho como 24px */
+}
+
+.header-row > div:first-child {
+  min-width: 0;
+}
+
+.header-row h4 {
+  overflow-wrap: anywhere;
 }
 
 .eyebrow {
@@ -124,6 +138,7 @@ h1 {
   padding: 9px 18px;
   font-weight: 800;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .search-stack,
@@ -220,6 +235,58 @@ h1 {
   color: var(--muted);
   min-height: 20px;
   font-size: 0.96rem;
+}
+
+.quote-save-bar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) auto minmax(150px, 1.2fr) repeat(4, auto);
+  align-items: end;
+  gap: 10px;
+  flex: 1 1 100%;
+  order: 2;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f9fbff;
+}
+
+.toolbar-row > button {
+  order: 1;
+}
+
+.quote-save-bar label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.quote-save-bar input,
+.quote-save-bar select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+.quote-save-bar a.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.quote-save-bar small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .customer-card h3,
@@ -490,7 +557,8 @@ h1 {
   .extra-grid,
   .summary-grid,
   .quote-product-values,
-  .manual-extra-grid {
+  .manual-extra-grid,
+  .quote-save-bar {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -509,12 +577,24 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .quote-save-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-save-bar small {
+    grid-column: auto;
+  }
+
   .header-row {
     align-items: flex-start;
   }
 
   .search-row {
     grid-template-columns: 1fr;
+  }
+
+  .search-row > * {
+    min-width: 0;
   }
 
   .quote-product {
@@ -568,6 +648,7 @@ h1 {
   color: #586781;
   font-size: 9pt;
 }
+
 @media print {
   body {
     background: #fff;
