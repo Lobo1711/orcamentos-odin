@@ -24,6 +24,38 @@
             "type": "pwa-chrome",
             "request": "launch",
             "name": "Launch Opera GX against localhost",
+            "runtimeExecutable": "${env:LOCALAPPDATA}\\Programs\\Opera GX\\opera.exe",
+            "url": "http://localhost:8787",
+            "webRoot": "${workspaceFolder}",
+            "preLaunchTask": "Iniciar servidor local"
+        }
+    ]
+}{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "pwa-chrome",
+            "request": "launch",
+            "name": "Launch Chrome against localhost",
+            "url": "http://localhost:8787",
+            "webRoot": "${workspaceFolder}",
+            "preLaunchTask": "Iniciar servidor local"
+        },
+        {
+            "type": "pwa-msedge",
+            "request": "launch",
+            "name": "Launch Microsoft Edge against localhost",
+            "url": "http://localhost:8787",
+            "webRoot": "${workspaceFolder}",
+            "preLaunchTask": "Iniciar servidor local"
+        },
+        {
+            "type": "pwa-chrome",
+            "request": "launch",
+            "name": "Launch Opera GX against localhost",
             "runtimeExecutable": "${env:LOCALAPPDATA}\Programs\Opera GX\opera.exe",
             "url": "http://localhost:8787",
             "webRoot": "${workspaceFolder}",
