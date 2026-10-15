@@ -1,5 +1,5 @@
 // Carrega o módulo que permite iniciar o servidor principal como um processo separado.
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 // Carrega o módulo HTTP nativo usado para verificar quando o site está disponível.
 const http = require('http');
 // Carrega o módulo que executa o navegador padrão do Windows.
@@ -8,11 +8,11 @@ const { execFile } = require('child_process');
 const path = require('path');
 
 // Define a porta usada pelo servidor ou respeita uma porta informada pelo ambiente.
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 8787;
 // Monta o endereço local usado para abrir e testar o site.
 const siteUrl = `http://127.0.0.1:${port}`;
-// Define o caminho absoluto do arquivo que inicia o servidor Express.
-const serverPath = path.join(__dirname, 'server.js');
+// Define o caminho absoluto da ferramenta Wrangler instalada no projeto.
+const wranglerPath = path.join(__dirname, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
 
 // Verifica se o servidor já está respondendo antes de iniciar outro processo.
 function isServerRunning() {
@@ -50,8 +50,8 @@ function openBrowser() {
 
 // Aguarda o servidor responder antes de liberar o navegador.
 async function waitForServer() {
-  // Tenta verificar o servidor por até vinte segundos.
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  // Tenta verificar o Worker local por até trinta segundos.
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     // Encerra a espera assim que a página estiver disponível.
     if (await isServerRunning()) {
       return true;
@@ -67,11 +67,28 @@ async function waitForServer() {
 async function main() {
   // Reutiliza o servidor existente quando ele já estiver ativo.
   if (!(await isServerRunning())) {
-    // Inicia o servidor com o mesmo executável Node usado pelo lançador.
-    const server = spawn(process.execPath, [serverPath], {
-      cwd: __dirname,
-      detached: true,
-      stdio: 'ignore'
+    const migration = spawnSync(
+      process.execPath,
+      [wranglerPath, 'd1', 'migrations', 'apply', 'orcamentos-odin', '--local'],
+      { cwd: __dirname, stdio: 'inherit' }
+    );
+    if (migration.error || migration.status !== 0) {
+      console.error(`Não foi possível preparar o D1 local: ${migration.error?.message || 'falha na migração'}`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const server = spawn(
+      process.execPath,
+      [wranglerPath, 'dev', '--ip', '127.0.0.1', '--port', String(port)],
+      {
+        cwd: __dirname,
+        detached: true,
+        stdio: 'ignore'
+      }
+    );
+    server.on('error', (error) => {
+      console.error(`Não foi possível iniciar o Worker local: ${error.message}`);
     });
     // Libera o lançador para terminar sem encerrar o servidor filho.
     server.unref();
@@ -81,7 +98,7 @@ async function main() {
   const ready = await waitForServer();
   // Interrompe com uma mensagem clara quando o servidor não inicia.
   if (!ready) {
-    console.error(`O site não respondeu em ${siteUrl} após 20 segundos.`);
+    console.error(`O site não respondeu em ${siteUrl} após 30 segundos.`);
     process.exitCode = 1;
     return;
   }
